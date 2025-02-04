@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click the Circle</title>
+  <link href="https://fonts.googleapis.com/css?family=Chewy" rel="stylesheet">
+  <style>
+    body {
+      margin: 0px;
+      font-family: "Chewy", "cursive";
+      background-color: aliceblue;
+      height: 100%;
+      width: 100%;
+    }
+
+    #title {
+      position: relative;
+      margin: 0px;
+      height: 10vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc((.4em + 1vmin) + (.4em + 1vmax)); 
+    }
+
+    #hint-container {
+      width: 100%;
+      top: 0px;
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;  /* Change to column to stack hints vertically */
+      align-items: center;
+      gap: 10px;  /* Add spacing between hints */
+      top: 15vh;  /* Adjust position for better visibility */
+    }
+
+    @media (max-width: 575px) {
+      #hint-container {
+        top: 15vh;
+      }
+    }
+
+    .hint {
+      font-size: calc((.4em + 0.5vmin) + (.4em + 0.5vmax));
+      visibility: hidden;
+    }
+
+    #main {
+      height: 90vh;
+      width: 100vw;
+      top: 0px;
+      left: 0px;
+      text-align: center;
+    }
+
+    #win-screen {
+      visibility: hidden;
+      background-color: rgb(96, 158, 209);
+      width: 30vw;
+      position: absolute;
+      top: 35vh;
+      left: 35vw;
+      padding-bottom: 1.5vh;
+      text-align: center;
+      border: solid black 2px;
+      overflow: auto;
+    }
+
+    #win-text {
+      font-size: calc((.4em + 0.9vmin) + (.4em + 0.9vmax));
+      margin-top: 1.5vh;
+    }
+
+    #win-sub {
+      padding-bottom: 1.5vh;
+      font-size: calc((.4em + 0.5vmin) + (.4em + 0.5vmax));
+    }
+
+    button {
+      padding: 10px;
+      font-size: calc((.4em + 0.35vmin) + (.4em + 0.35vmax));
+      font-family: "Chewy", "cursive";
+      border-radius: 8px;
+    }
+
+    button:hover {
+      background-color: lightsteelblue;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="title">Click the circle</h1>
+  <div id="hint-container">
+    <h2 class="hint" id="hint1">Sanay maghabol</h2>
+    <h2 class="hint" id="hint2">Ng hindi ka gusto</h2>
+    <h2 class="hint" id="hint3">Right click para d kana mapagod kakahabol</h2>
+  </div>
+  <div id="main">
+    <canvas id="myCanvas">Your browser does not support canvas</canvas>
+  </div>
+  <div id="win-screen">
+    <h1 id="win-text">Winner!</h1>
+    <h2 id="win-sub">Times na ginawa kang tanga: <span id="num-circles">0</span></h2>
+    <button onClick="removeWinScreen()">Tanga amp</button>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    //define canvas size
+    const viewHeight = $('#main').height();
+    const viewWidth = $('#main').width();
+
+    //set canvas height and width for different screens
+    var canvas, viewportHeight, viewportWidth, canvasHeight, canvasWidth;
+    function setCanvasSize() {
+      canvas = document.getElementById('myCanvas');
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+      canvasWidth = viewportWidth * 0.9;
+      canvasHeight = viewportHeight * 0.9;
+
+      canvas.style.position = "absolute";
+      canvas.style.display = "block";
+      canvas.setAttribute("width", canvasWidth);
+      canvas.setAttribute("height", canvasHeight);
+      canvas.style.top = viewportHeight * 0.1 + "px";
+      canvas.style.left = (viewportWidth - canvasWidth) / 2 + "px";
+    }
+
+    //keep circle in center when resizing window
+    window.onresize = function() {
+      setCanvasSize();
+      drawDot("initialize");
+    };
+
+    //place initial circle in center of page
+    window.onload = function() {
+      setCanvasSize();
+      drawDot("initialize");
+    };
+
+    //global circle size variables
+    var numCircles = 0;
+    var xPos, yPos, r;
+    let colors = ["rgb(214, 74, 74)", //red
+                  "rgb(214, 123, 74)", //orange
+                  "rgb(214, 155, 74)", //orange-yellow
+                  "rgb(214, 193, 74)", //yellow
+                  "rgb(179, 214, 74)", //lime
+                  "rgb(74, 214, 146)", //aqua
+                  "rgb(64, 142, 83)", //dark green
+                  "rgb(74, 214, 207)", //light blue
+                  "rgb(74, 158, 214)", //blue
+                  "rgb(90, 74, 214)", //indigo
+                  "rgb(134, 74, 214)", //purple
+                  "rgb(181, 74, 214)", //magenta
+                  "rgb(214, 74, 144)"]; //pink
+
+    //function to pick a random color different than current color
+    var currentColor = "rgb(214, 74, 74)";
+    function randomColor() {
+      var newColor = colors[Math.floor(Math.random() * colors.length)];
+      while (newColor === currentColor) {
+        newColor = colors[Math.floor(Math.random() * colors.length)];
+      }
+      currentColor = newColor;
+      return newColor;
+    }
+
+    //draw the random circles
+    function drawDot(sourceLoc) {
+      let dot = canvas.getContext("2d");
+      //if function is being called from resize or onload functions, use inital data, if it is being called from mousemove, use random data
+      if (sourceLoc === "initialize") {
+        r = viewportWidth * 0.03;
+        xPos = canvasWidth / 2;
+        yPos = canvasHeight / 2;
+        numCircles = 0;
+      } else if (sourceLoc === "restart") {
+        r = viewportWidth * 0.03;
+        xPos = canvasWidth / 5;
+        yPos = canvasHeight / 5;
+        numCircles = 0;
+      } else if (winScreen.style.visibility === "visible") {
+        xPos = xPos;
+        yPos = yPos;
+        r = r;
+        numCircles = numCircles;
+      } else {
+        r = Math.floor(Math.random() * (viewportWidth * 0.028) + (viewportWidth * 0.015));
+        //randomizes x and y location, except it will never be within r of the last circle unless canvas size is too small
+        xPos = randomizer(xPos);
+        yPos = randomizer(yPos);
+      }
+      //circle drawing code
+      dot.beginPath();
+      dot.arc(xPos, yPos, r, 0, 2 * Math.PI, false);
+      if (sourceLoc === "initialize" || sourceLoc === "restart") {
+        dot.fillStyle = "rgb(214, 74, 74)";
+      } else if (winScreen.style.visibility === "visible" && numCircles === 0) {
+        dot.fillStyle = "rgb(214, 74, 74)";
+      } else if (winScreen.style.visibility === "visible") {
+        dot.fillStyle = currentColor;
+      } else {
+        dot.fillStyle = randomColor();
+      }
+      dot.fill();
+    }
+
+    //function to randomize x and y position
+    //while loops make it so new circle never appears too close to last one
+    //if infinite loop protection triggers, draws circle anyway ignoring distance (for small screens or window resized small)
+    let distance = 5;
+    var counter = 0;
+    function randomizer(pos) {
+      if (pos === xPos) {
+        let newX = Math.floor(Math.random() * (canvasWidth - 2 * r) + r);
+        while (newX >= xPos - (distance * r) && newX <= xPos + (distance * r)) {
+          newX = Math.floor(Math.random() * (canvasWidth - 2 * r) + r);
+          counter++;
+          //infinite loop protection
+          if (counter >= 50) {
+            break;
+          }
+        }
+        counter = 0;
+        return newX;
+      } else {
+        let newY = Math.floor(Math.random() * (canvasHeight - 2 * r) + r);
+        while (newY >= yPos - (distance * r) && newY <= yPos + (distance * r)) {
+          newY = Math.floor(Math.random() * (canvasHeight - 2 * r) + r);
+          counter++;
+          //infinite loop protection
+          if (counter >= 50) {
+            break;
+          }
+        }
+        counter = 0;
+        return newY;
+      }
+    }
+
+    //global win screen variable
+    let winScreen = document.getElementById("win-screen");
+
+    //get mouse coordinates
+    var mouseX, mouseY;
+    $("#main").mousemove(function(event) {
+      mouseX = event.pageX - ((viewportWidth - canvasWidth) / 2);
+      mouseY = event.pageY - (viewportHeight - canvasHeight);
+      //when mouse gets close to circle, draws new canvas and moves circle
+      if (didMouseTouchDot(mouseX, mouseY, xPos, yPos, r)) {
+        setCanvasSize();
+        if (winScreen.style.visibility === "visible") {
+          drawDot();
+        } else {
+          drawDot("mousemove");
+          //increment number of circles that escaped
+          numCircles++;
+          document.getElementById("num-circles").innerHTML = numCircles;
+          //show hints when some number of circle have escaped
+          let hint1 = document.getElementById("hint1");
+          let hint2 = document.getElementById("hint2");
+          let hint3 = document.getElementById("hint3");
+          if (numCircles === 5) {
+            hint1.style.visibility = "visible";
+            $("#hint1").hide().fadeIn(1500);
+          }
+          if (numCircles === 10) {
+            hint2.style.visibility = "visible";
+            $("#hint2").hide().fadeIn(1500);
+          }
+          if (numCircles === 15) {
+            hint3.style.visibility = "visible";
+            $("#hint3").hide().fadeIn(1500); // Add this to show hint3 after 15 circles
+          }
+        }
+      }
+    });
+
+    //detects mouse click and checks if it is in circle or not for win
+    $("#main").click(function(event) {
+      if (winCondition(mouseX, mouseY, xPos, yPos, r)) {
+        winScreen.style.visibility = "visible";
+        //circle does not randomize when win screen is up
+        setCanvasSize();
+        drawDot();
+      }
+    });
+
+    //function to check if mouse gets near circle
+    function didMouseTouchDot(mouseX, mouseY, dotX, dotY, r) {
+      //manipulation of r in Math.pow is radius around circle that will trigger it to randomize location
+      if ((Math.pow((mouseX - dotX), 2) + Math.pow((mouseY - dotY), 2) <= Math.pow(r * 3.3, 2)) && (Math.pow((mouseX - dotX), 2) + Math.pow((mouseY - dotY), 2) >= Math.pow(r, 2))) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    //function to check if mouse actually touches circle
+    function winCondition(mouseX, mouseY, dotX, dotY, r) {
+      if (Math.pow((mouseX - dotX), 2) + Math.pow((mouseY - dotY), 2) <= Math.pow(r, 2)) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    //removes win screen when restart button is pressed
+    function removeWinScreen() {
+      winScreen.style.visibility = "hidden";
+      numCircles = 0;
+      document.getElementById("num-circles").innerHTML = numCircles;
+      hint1.style.visibility = "hidden";
+      hint2.style.visibility = "hidden";
+      hint3.style.visibility = "hidden"; // Hide hint3 on restart
+      setCanvasSize();
+      drawDot("restart");
+    }
+  </script>
+</body>
+</html>
